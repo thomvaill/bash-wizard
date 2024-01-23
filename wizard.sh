@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2221,SC2222
 set -euo pipefail
 __dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-__file="$__dir/${BASH_SOURCE[0]}"
+__file="${__dir}/${BASH_SOURCE[0]}"
 readonly __dir __file
 
 # BASH-WIZARD: a very-light implementation of Ansible in pure bash
 # https://github.com/thomvaill/bash-wizard
-# 
+#
 # A task consists of the following bash functions:
-#  - [required] task_name.do()  : implementation of the task, if possible in an idempotent way
-#  - [optional] task_name.when(): to decide when the task has to run; useful for non-idempotent implementations or tasks that are too long to run everytime (eg. those which involve a download)
-#  - [optional] task_name.undo(): implementation of the task rollback
+#  - [required] task_name.do()      : implementation of the task, if possible in an idempotent way
+#  - [optional] task_name.when()    : to decide when the task has to run; useful for non-idempotent implementations or tasks that are too long to run everytime (eg. those which involve a download)
+#  - [optional] task_name.undo()    : implementation of the task rollback
+#  - [optional] task_name.explain() : echo a one-line explanation of the task
 #
 # vvv YOUR PLAYBOOK vvv
 
@@ -32,6 +32,9 @@ configure_something.do() {
 configure_something.undo() {
     rm -f ~/test
 }
+configure_something.explain() {
+    echo "configure the specific test file lorem ipsum"
+}
 
 # ^^^^^^^^^^^^^^^^^^^^^
 # STOP!
@@ -43,15 +46,14 @@ usage() {
     cat << END
 Usage:
     ${BASH_SOURCE[0]} [args] <action>
-
 Actions:
     apply     : execute all the tasks
     rollback  : undo all the tasks
     list      : list all the tasks
-
 Arguments:
     -h|--help : display this help
     --debug   : enable debug mode (eg. output tasks' commands)
+    --explain : explain every task
 END
 }
 
@@ -91,11 +93,22 @@ _function_exists() {
 }
 
 _output_start() {
-    echo -en "\e[90m"
+    echo -en "\e[35m"
 }
 
 _output_end() {
     echo -en "\e[0m"
+}
+
+_explain_task() {
+    local task="${1}"
+
+    if ! _function_exists "${task}.explain"
+    then
+        return 0
+    fi
+
+    echo "    > $("${task}".explain)"
 }
 
 _apply_task() {
@@ -154,8 +167,13 @@ _rollback_task() {
 }
 
 _apply() {
-    local tasks task
-    tasks="$(_get_tasks)"
+    local tasks="${*:-}"
+    local task
+
+    if [[ -z "${tasks:-}" ]]
+    then
+        tasks="$(_get_tasks)"
+    fi
 
     for task in ${tasks}
     do
@@ -167,8 +185,13 @@ _apply() {
 }
 
 _rollback() {
-    local tasks task
-    tasks="$(_get_tasks)"
+    local tasks="${*:-}"
+    local task
+
+    if [[ -z "${tasks:-}" ]]
+    then
+        tasks="$(_get_tasks)"
+    fi
 
     for task in ${tasks}
     do
@@ -180,11 +203,19 @@ _rollback() {
 }
 
 _list() {
-    _get_tasks
+    local tasks
+    tasks="$(_get_tasks)"
+
+    for task in ${tasks}
+    do
+        echo "🎯 ${task}"
+        [[ "${WIZARD_EXPLAIN_TASKS:-}" = "1" ]] && _explain_task "${task}" && echo
+    done
 }
 
 main() {
     local params=""
+    local action
 
     # parse args and parameters (source: https://medium.com/@Drew_Stokes/bash-argument-parsing-54f3b81a6a8f)
     while (( "$#" ))
@@ -195,11 +226,15 @@ main() {
                 exit 0
                 shift
                 ;;
+            --explain)
+                WIZARD_EXPLAIN_TASKS=1
+                shift
+                ;;
             --debug)
                 WIZARD_DEBUG=1
                 shift
                 ;;
-            -*|--*=) # unsupported flags
+            -*) # unsupported flags
                 echo "Error: unsupported flag: ${1}" >&2
                 exit 1
                 ;;
@@ -209,14 +244,21 @@ main() {
                 ;;
         esac
     done
-    params="${params:1}"
 
-    case "${params}" in
+    # set positional arguments in their proper place
+    eval set -- "${params:1}"
+
+    action="${1:-}"
+    if [[ -n "${action}" ]]
+    then
+        shift
+    fi
+    case "${action}" in
         apply)
-            _apply
+            _apply "${@}"
             ;;
         rollback)
-            _rollback
+            _rollback "${@}"
             ;;
         list)
             _list
