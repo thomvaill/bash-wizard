@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 __dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-__file="${__dir}/${BASH_SOURCE[0]}"
+__file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
 readonly __dir __file
 
 # BASH-WIZARD: a very-light implementation of Ansible in pure bash
