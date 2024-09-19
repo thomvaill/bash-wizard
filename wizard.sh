@@ -224,7 +224,6 @@ main() {
             -h|--help)
                 usage
                 exit 0
-                shift
                 ;;
             --explain)
                 WIZARD_EXPLAIN_TASKS=1
