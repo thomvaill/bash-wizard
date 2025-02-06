@@ -4,7 +4,7 @@ __dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 __file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
 readonly __dir __file
 
-# BASH-WIZARD: a very-light implementation of Ansible in pure bash
+# BASH-WIZARD: a very-light alternative of Ansible in pure bash
 # https://github.com/thomvaill/bash-wizard
 #
 # A task consists of the following bash functions:
